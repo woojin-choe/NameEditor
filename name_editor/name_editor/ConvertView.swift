@@ -6,6 +6,7 @@ struct ConvertView: View {
     @State private var nameInput: String = ""
     @State private var selectedCategory: Category? = nil
     @State private var copied: Bool = false
+    @State private var hintPulse: Bool = false
     @FocusState private var nameFocused: Bool
 
     private var result: String? {
@@ -51,9 +52,30 @@ struct ConvertView: View {
 
                         // 카테고리 선택
                         VStack(alignment: .leading, spacing: 6) {
-                            Label("카테고리 선택", systemImage: "folder")
-                                .font(.caption).fontWeight(.semibold)
-                                .foregroundColor(.secondary)
+                            HStack(spacing: 6) {
+                                Label("카테고리 선택", systemImage: "folder")
+                                    .font(.caption).fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+
+                                if !nameInput.trimmingCharacters(in: .whitespaces).isEmpty && selectedCategory == nil && !store.categories.isEmpty {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "arrow.down")
+                                            .font(.caption2).fontWeight(.bold)
+                                        Text("아래 카테고리 중 선택해주세요")
+                                            .font(.caption2).fontWeight(.semibold)
+                                    }
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color(hex: "FEE500"))
+                                    .cornerRadius(8)
+                                    .scaleEffect(hintPulse ? 1.05 : 1.0)
+                                    .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: hintPulse)
+                                    .onAppear { hintPulse = true }
+                                    .onDisappear { hintPulse = false }
+                                    .transition(.opacity.combined(with: .scale))
+                                }
+                            }
 
                             if store.categories.isEmpty {
                                 Text("카테고리 탭에서 먼저 추가해주세요 →")
@@ -73,7 +95,11 @@ struct ConvertView: View {
                                             )
                                             .onTapGesture {
                                                 withAnimation(.spring(response: 0.3)) {
-                                                    selectedCategory = cat
+                                                    if selectedCategory?.id == cat.id {
+                                                        selectedCategory = nil
+                                                    } else {
+                                                        selectedCategory = cat
+                                                    }
                                                     copied = false
                                                 }
                                             }
