@@ -12,6 +12,7 @@ struct name_editorApp: App {
     @State private var store = CategoryStore()
     @State private var authManager = AuthManager()
     @State private var showSplash = true
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
 
     var body: some Scene {
         WindowGroup {
@@ -30,9 +31,18 @@ struct name_editorApp: App {
                     LoginView()
                         .environment(authManager)
                 case .signedIn, .guest:
-                    ContentView()
-                        .environmentObject(store)
-                        .environment(authManager)
+                    if showOnboarding {
+                        OnboardingView {
+                            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                            withAnimation(.easeOut(duration: 0.4)) {
+                                showOnboarding = false
+                            }
+                        }
+                    } else {
+                        ContentView()
+                            .environmentObject(store)
+                            .environment(authManager)
+                    }
                 }
             }
         }

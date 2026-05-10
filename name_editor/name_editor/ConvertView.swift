@@ -3,16 +3,17 @@ import SwiftUI
 struct ConvertView: View {
     @EnvironmentObject var store: CategoryStore
 
-    @State private var nameInput: String = ""
+    @State private var nameInputs: [String] = [""]
     @State private var selectedCategory: Category? = nil
     @State private var copied: Bool = false
     @State private var hintPulse: Bool = false
-    @FocusState private var nameFocused: Bool
+    @FocusState private var focusedNameIndex: Int?
 
     private var result: String? {
-        guard !nameInput.trimmingCharacters(in: .whitespaces).isEmpty,
-              let cat = selectedCategory else { return nil }
-        return cat.apply(to: nameInput.trimmingCharacters(in: .whitespaces))
+        guard let cat = selectedCategory else { return nil }
+        let trimmed = nameInputs.prefix(cat.nameCount).map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !(trimmed.first?.isEmpty ?? true) else { return nil }
+        return cat.apply(to: Array(trimmed))
     }
 
     var body: some View {
@@ -36,18 +37,27 @@ struct ConvertView: View {
                     // ── 입력 카드 ─────────────────────────────
                     VStack(spacing: 16) {
 
-                        // 이름 입력
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label("이름 입력", systemImage: "person")
+                        // 이름 입력 (카테고리 nameCount에 따라 동적 생성)
+                        let count = selectedCategory?.nameCount ?? 1
+                        ForEach(0..<count, id: \.self) { i in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label(
+                                    count > 1 ? "이름 \(i + 1)" : "이름 입력",
+                                    systemImage: "person"
+                                )
                                 .font(.caption).fontWeight(.semibold)
                                 .foregroundColor(.secondary)
-                            TextField("예: 홍길동", text: $nameInput)
-                                .focused($nameFocused)
+
+                                TextField(
+                                    i == 0 ? "예: 홍길동" : "예: 닉네임",
+                                    text: nameInputBinding(for: i)
+                                )
+                                .focused($focusedNameIndex, equals: i)
                                 .font(.body)
                                 .padding(12)
                                 .background(Color(.systemGray6))
                                 .cornerRadius(10)
-                                .onChange(of: nameInput) { _ in copied = false }
+                            }
                         }
 
                         // 카테고리 선택
@@ -57,7 +67,7 @@ struct ConvertView: View {
                                     .font(.caption).fontWeight(.semibold)
                                     .foregroundColor(.secondary)
 
-                                if !nameInput.trimmingCharacters(in: .whitespaces).isEmpty && selectedCategory == nil && !store.categories.isEmpty {
+                                if !(nameInputs.first?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) && selectedCategory == nil && !store.categories.isEmpty {
                                     HStack(spacing: 3) {
                                         Image(systemName: "arrow.down")
                                             .font(.caption2).fontWeight(.bold)
@@ -134,8 +144,28 @@ struct ConvertView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .background(Color(.systemGroupedBackground))
-            .onTapGesture { nameFocused = false }
+            .onTapGesture { focusedNameIndex = nil }
+            .onChange(of: selectedCategory) { newCat in
+                let count = newCat?.nameCount ?? 1
+                if nameInputs.count < count {
+                    nameInputs.append(contentsOf: Array(repeating: "", count: count - nameInputs.count))
+                } else if nameInputs.count > count {
+                    nameInputs = Array(nameInputs.prefix(count))
+                }
+                copied = false
+            }
         }
+    }
+
+    private func nameInputBinding(for index: Int) -> Binding<String> {
+        Binding(
+            get: { nameInputs.count > index ? nameInputs[index] : "" },
+            set: {
+                while nameInputs.count <= index { nameInputs.append("") }
+                nameInputs[index] = $0
+                copied = false
+            }
+        )
     }
 
     private func copyResult() {
@@ -143,7 +173,7 @@ struct ConvertView: View {
         UIPasteboard.general.string = text
         store.addHistory(
             result:       text,
-            originalName: nameInput.trimmingCharacters(in: .whitespaces),
+            originalName: nameInputs.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " / "),
             categoryName: selectedCategory?.name ?? ""
         )
         withAnimation { copied = true }

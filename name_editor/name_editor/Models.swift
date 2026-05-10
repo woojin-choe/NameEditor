@@ -6,12 +6,33 @@ import SwiftUI
 struct Category: Identifiable, Codable, Equatable, Hashable {
     var id: UUID = UUID()
     var name: String
-    var format: String       // 예: "ADA/{이름}"
+    var format: String       // 예: "ADA/{이름1}" or "ADA/{이름1}/{이름2}"
     var colorHex: String
 
-    /// {이름} 자리에 실제 이름 대입
-    func apply(to inputName: String) -> String {
-        format.replacingOccurrences(of: "{이름}", with: inputName)
+    /// 포맷에 포함된 이름 슬롯 개수
+    var nameCount: Int {
+        // 신규 형식 {이름1}, {이름2}, ...
+        var count = 0
+        var i = 1
+        while format.contains("{이름\(i)}") {
+            count = i
+            i += 1
+        }
+        // 레거시 {이름} 단일 지원
+        if count == 0 && format.contains("{이름}") { return 1 }
+        return max(count, 1)
+    }
+
+    /// 이름 배열을 포맷에 대입
+    func apply(to names: [String]) -> String {
+        var result = format
+        // 레거시 {이름} → 첫 번째 이름
+        result = result.replacingOccurrences(of: "{이름}", with: names.first ?? "")
+        // 신규 {이름1}, {이름2}, ...
+        for (i, n) in names.enumerated() {
+            result = result.replacingOccurrences(of: "{이름\(i + 1)}", with: n)
+        }
+        return result
     }
 
     var color: Color { Color(hex: colorHex) }
@@ -23,10 +44,10 @@ struct Category: Identifiable, Codable, Equatable, Hashable {
     ]
 
     static let defaults: [Category] = [
-        Category(name: "광운대 동기",    format: "광운대/{이름}",  colorHex: "4D96FF"),
-        Category(name: "고등학교 친구",  format: "고/{이름}",      colorHex: "FF9F43"),
-        Category(name: "중학교 친구",    format: "중/{이름}",      colorHex: "6BCB77"),
-        Category(name: "동아리",         format: "동아리/{이름}",  colorHex: "C77DFF"),
+        Category(name: "광운대 동기",   format: "광운대/{이름1}",  colorHex: "4D96FF"),
+        Category(name: "고등학교 친구", format: "고/{이름1}",      colorHex: "FF9F43"),
+        Category(name: "중학교 친구",   format: "중/{이름1}",      colorHex: "6BCB77"),
+        Category(name: "동아리",        format: "동아리/{이름1}",  colorHex: "C77DFF"),
     ]
 }
 
